@@ -1,0 +1,150 @@
+// Copyright (c) 2018, Bill Mei
+// Minesweeper Game class
+// Contains the core game logic and rules
+class Minesweeper {
+   field Grid grid;
+   field Cursor cursor;
+   field boolean gameLost;
+   field int livesRemaining; // Track remaining lives
+   
+   constructor Minesweeper new() {
+      let livesRemaining = 2; // Start with 2 lives (original + extra)
+      return this;
+   }
+   
+   // Method to redraw the grid - to be called after delay
+   method void redrawGrid() {
+      do grid.draw(gameLost | grid.gameWon());
+      return;
+   }
+   
+   // Entrypoint: run the game
+   method void run() {
+      var int action, gridWidth, gridHeight, gridPercentMines;
+      var boolean gameEnded, hitMine;
+      
+      let gameLost = false;
+      let gameEnded = false;
+      
+      // Base game variables
+      let gridWidth = 24;
+      let gridHeight = 12;
+      let gridPercentMines = 12; // %
+      
+      // Initialize objects
+      let grid = Grid.new(gridWidth, gridHeight, gridPercentMines);
+      let cursor = Cursor.new();
+      do cursor.init(grid);
+      
+      // Initialize drawing
+      do Strings.displayTitle();
+      do Strings.displayInstructions();
+      do Sprites.drawBorder();
+      do Strings.displayMineCount(grid.getMineCount());
+      do displayLives(); // Display initial lives
+      
+      // Main game loop
+      while (~(action = 4)) {
+         // Only draw grid if game is not ended
+         if (~gameEnded) {
+            do grid.draw(gameLost | grid.gameWon());
+         }
+         
+         // action = 1 // [f] key to (un)plant a flag
+         // action = 2 // [space] to reveal (dig) a cell
+         // action = 3 // [r] key to restart the game
+         // action = 4 // [q] key to exit
+         let action = cursor.captureInput();
+         
+         // Define what to do with each action captured:
+         if (action = 3) {
+            // Reset game state
+            let gameLost = false;
+            let gameEnded = false;
+            let livesRemaining = 2; // Reset lives on restart
+            
+            // Redraw
+            do Screen.clearScreen();
+            do Strings.displayTitle();
+            do Strings.displayInstructions();
+            do Sprites.drawBorder();
+            
+            // Reinitialize objects
+            do grid.dispose();
+            let grid = Grid.new(gridWidth, gridHeight, gridPercentMines);
+            do cursor.init(grid);
+            do cursor.unlock(); // Make sure cursor is unlocked
+            
+            // Update displays
+            do Strings.displayMineCount(grid.getMineCount());
+            do displayLives();
+         }
+         
+         // Only process game actions if the game is not ended
+         if (~gameEnded) {
+            if (action = 2) {
+               let hitMine = grid.reveal(cursor.getX(), cursor.getY());
+               
+               if (hitMine) {
+                  let livesRemaining = livesRemaining - 1;
+                  do displayLives();
+                  
+                  if (livesRemaining = 0) {
+                     // Out of lives - game over
+                     let gameLost = true;
+                  } else {
+                     // Show warning message with extra life notification
+                     do Strings.displayHitMine(false);  // Show message without returning to grid
+                     
+                     // Wait for player to acknowledge
+                     do Keyboard.readChar();  // Wait for any key press
+                     
+                     // Restore game screen
+                     do Screen.clearScreen();
+                     do Strings.displayTitle();
+                     do Strings.displayInstructions();
+                     do Sprites.drawBorder();
+                     do Strings.displayMineCount(Math.max(grid.getMineCount() - grid.getFlagCount(), 0));
+                     do displayLives();
+                  }
+               }
+            }
+            if (action = 1) {
+               do grid.flag(cursor.getX(), cursor.getY());
+            }
+            
+            do Strings.displayMineCount(Math.max(grid.getMineCount() - grid.getFlagCount(), 0));
+            
+            // Check for game end conditions
+            if (gameLost) {
+               let gameEnded = true;
+               do cursor.lock();
+               do Strings.displayGameLost(false); // Show message, don't return to grid
+            }
+            else {
+               if (grid.gameWon()) {
+                  let gameEnded = true;
+                  do cursor.lock();
+                  do Strings.displayGameWon(false); // Show message, don't return to grid
+               }
+            }
+         }
+      }
+      return;
+   }
+   
+   // Display remaining lives
+   method void displayLives() {
+      do Output.moveCursor(21, 15);
+      do Output.printString("Lives: ");
+      do Output.printInt(livesRemaining);
+      return;
+   }
+   
+   method void dispose() {
+      do grid.dispose();
+      do cursor.dispose();
+      do Memory.deAlloc(this);
+      return;
+   }
+}

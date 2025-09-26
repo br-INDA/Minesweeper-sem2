@@ -1,0 +1,10 @@
+class Text{
+     function void textupdate(){
+        do Output.moveCursor(5, 10); 
+        do Output.printString("game over");
+return;
+}
+
+}
+
+    
